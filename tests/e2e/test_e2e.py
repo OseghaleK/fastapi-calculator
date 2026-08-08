@@ -11,9 +11,12 @@ def calculate(page, a, b, button):
     starts empty, which turns out to be useful, because waiting for it
     to stop being empty is a reliable signal the request came back.
     """
+    page.fill("#a", "")
     page.fill("#a", str(a))
+    page.fill("#b", "")
     page.fill("#b", str(b))
     page.get_by_role("button", name=button, exact=True).click()
+    page.fill("#result", "")
     page.wait_for_function(
         "document.getElementById('result').innerText.trim() !== ''"
     )
@@ -65,6 +68,7 @@ def test_empty_inputs_show_an_error(page, live_server):
     # and comes back as a validation error rather than a result.
     page.goto(live_server)
     page.get_by_role("button", name="Add", exact=True).click()
+    page.fill("#result", "")
     page.wait_for_function(
         "document.getElementById('result').innerText.trim() !== ''"
     )
