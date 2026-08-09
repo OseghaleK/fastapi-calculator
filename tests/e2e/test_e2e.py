@@ -2,23 +2,38 @@
 
 import pytest
 
+# A marker no real result could ever be. Blanking the result div and
+# waiting for it to stop being empty looked fine but was not reliable,
+# because a leftover value could satisfy the wait before the new request
+# had even been sent. Waiting for this to be replaced cannot be
+# satisfied by anything except a fresh response.
+PENDING = "__waiting_for_response__"
+
+
+def mark_pending(page):
+    """Stamp the result div so we can tell new output from old."""
+    page.evaluate(
+        "marker => { document.getElementById('result').innerText = marker; }",
+        PENDING,
+    )
+
 
 def calculate(page, a, b, button):
     """Fill both inputs, click a button, return whatever the page shows.
 
     The buttons in index.html have no ids, they use inline onclick
-    handlers, so they get found by their visible text. The result div
-    starts empty, which turns out to be useful, because waiting for it
-    to stop being empty is a reliable signal the request came back.
+    handlers, so they get found by their visible text.
     """
-    page.fill("#a", "")
+    mark_pending(page)
     page.fill("#a", str(a))
-    page.fill("#b", "")
     page.fill("#b", str(b))
     page.get_by_role("button", name=button, exact=True).click()
-    page.fill("#result", "")
     page.wait_for_function(
-        "document.getElementById('result').innerText.trim() !== ''"
+        "marker => {"
+        " const text = document.getElementById('result').innerText.trim();"
+        " return text !== '' && text !== marker;"
+        "}",
+        arg=PENDING,
     )
     return page.inner_text("#result")
 
@@ -68,7 +83,6 @@ def test_empty_inputs_show_an_error(page, live_server):
     # and comes back as a validation error rather than a result.
     page.goto(live_server)
     page.get_by_role("button", name="Add", exact=True).click()
-    page.fill("#result", "")
     page.wait_for_function(
         "document.getElementById('result').innerText.trim() !== ''"
     )
